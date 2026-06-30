@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Paper IV — Air-Gap Exfiltration · make a silent machine talk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600&family=Spectral:ital,wght@0,300;0,400;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{--sea:#170d20;--line:rgba(154,152,166,.16);--lead:#9a98a6;--lead-dim:#5b5868;
+    --parch:#e9e2d2;--parch-dim:#b9b2a3;--gold:#d9a441;--gold-dim:#a87f33;--verd:#73b3a3;--murex:#b24a78;--sig:#76b97e;}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;background:var(--sea);color:var(--parch);font-family:"Spectral",Georgia,serif;line-height:1.58;
+    -webkit-font-smoothing:antialiased;background-image:radial-gradient(1100px 560px at 82% -12%,rgba(118,185,126,.12),transparent 60%),
+      radial-gradient(820px 640px at 3% 112%,rgba(178,74,120,.07),transparent 55%);display:flex;justify-content:center}
+  .card{max-width:660px;width:100%;padding:34px 24px 54px}
+  .eyebrow{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--gold-dim)}
+  h1{font-family:"Cormorant Garamond",serif;font-weight:300;font-size:clamp(40px,11vw,66px);margin:6px 0 0;line-height:.94;letter-spacing:-.5px}
+  h1 .gk{display:block;font-size:.32em;color:var(--lead);letter-spacing:.04em;margin-top:8px;font-style:italic}
+  .sub{font-style:italic;font-weight:300;color:var(--parch-dim);font-size:16px;margin:16px 0 0;max-width:58ch}
+  .sub b{color:var(--sig);font-style:normal;font-weight:400}
+  h2{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--gold-dim);
+    margin:32px 0 13px;font-weight:500;border-top:1px solid var(--line);padding-top:18px}
+  p.body{font-size:15.5px;color:var(--parch-dim);max-width:62ch} p.body b{color:var(--parch)}
+  .verd{color:var(--verd)} .sig{color:var(--sig)} .mux{color:var(--murex)}
+
+  figure{margin:22px 0 0}
+  svg{display:block;width:100%;height:auto}
+  .frame{background:rgba(0,0,0,.16);border:1px solid var(--line);border-radius:8px}
+  figcaption{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--lead-dim);margin-top:9px;line-height:1.7}
+  figcaption b{color:var(--gold-dim)}
+
+  .demo{background:rgba(0,0,0,.2);border:1px solid var(--line);border-radius:8px;padding:16px}
+  .formula{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--sig);background:rgba(118,185,126,.07);border:1px solid rgba(118,185,126,.2);
+    border-radius:6px;padding:8px 11px;margin-bottom:12px;letter-spacing:.03em}
+  .bits{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 12px}
+  .bit{width:42px;height:48px;border:1px solid var(--lead-dim);border-radius:7px;background:linear-gradient(180deg,#16241a,#0f1a12);
+    cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;user-select:none;-webkit-user-select:none;transition:.1s}
+  .bit b{font-family:"Cormorant Garamond",serif;font-size:22px;font-weight:500;color:var(--lead)}
+  .bit small{font-family:"IBM Plex Mono",monospace;font-size:7.5px;color:var(--lead-dim);margin-top:1px}
+  .bit.one{border-color:rgba(118,185,126,.6)} .bit.one b{color:var(--sig)}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:4px}
+  button{cursor:pointer;background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(0,0,0,.18));border:1px solid var(--line);
+    border-radius:5px;color:var(--parch);font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.03em;padding:10px 14px;transition:.15s}
+  button:hover{border-color:rgba(118,185,126,.5);background:rgba(118,185,126,.08)} button:active{transform:translateY(1px)}
+  button.primary{border-color:rgba(118,185,126,.55);color:var(--sig)}
+  .verdict{font-family:"IBM Plex Mono",monospace;font-size:12px;margin-top:11px;letter-spacing:.04em;color:var(--lead-dim)}
+  .verdict b{color:var(--verd)} .verdict .x{color:var(--murex)}
+
+  .methods{display:grid;grid-template-columns:1fr;gap:9px;margin-top:4px}
+  .m{background:rgba(0,0,0,.18);border:1px solid var(--line);border-radius:7px;padding:12px 14px;display:flex;gap:13px;align-items:baseline}
+  .m .nm{font-family:"Cormorant Garamond",serif;font-size:19px;color:var(--sig);flex:0 0 150px}
+  .m .ds{font-size:13.5px;color:var(--parch-dim)} .m .ds b{color:var(--parch)}
+  .m .rb{font-family:"IBM Plex Mono",monospace;font-size:9.5px;color:var(--gold-dim);display:block;margin-top:3px;letter-spacing:.04em}
+
+  .note{margin-top:26px;border-top:1px solid var(--line);padding-top:15px;font-family:"IBM Plex Mono",monospace;font-size:11px;line-height:1.85;color:var(--lead-dim)}
+  .note b{color:var(--gold-dim);font-weight:500}
+  .attr{background:rgba(178,74,120,.06);border:1px solid rgba(178,74,120,.25);border-radius:8px;padding:15px 16px;margin-top:6px;font-size:14.5px;color:var(--parch-dim)}
+  .attr b{color:var(--murex)} .attr .v{color:var(--verd)} .attr .s{color:var(--sig)}
+  .foot{display:flex;justify-content:space-between;margin-top:24px;font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--lead-dim);letter-spacing:.06em;flex-wrap:wrap;gap:6px}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="eyebrow">audio cipher channels · paper IV of VI</div>
+  <h1>Air-Gap Exfiltration<span class="gk">make a silent machine talk</span></h1>
+  <p class="sub">An air-gapped machine has <b>no network</b> — the strongest isolation there is. Malware can still get <i>in</i> (a USB stick crossed the gap into Stuxnet's centrifuges). The hard part is getting data back <i>out</i> with no network and no speaker. The trick: don't add a transmitter — <b>weaponize the noise the machine already makes</b>. Spin the fan, seek the disk, and the secret rides out on a sound the computer was always going to produce.</p>
+
+  <h2>① the lineage</h2>
+  <figure>
+    <svg class="frame" viewBox="0 0 660 210" role="img" aria-label="Timeline of air-gap acoustic exfiltration">
+      <text x="24" y="30" fill="#a87f33" font-family="IBM Plex Mono,monospace" font-size="10" letter-spacing="1.5">THE JUMP-THE-GAP LINE — turning incidental noise into a transmitter</text>
+      <line x1="58" y1="100" x2="610" y2="100" stroke="#9a98a6" stroke-width="1.3"/>
+      <g font-family="IBM Plex Mono,monospace">
+        <circle cx="82" cy="100" r="5.5" fill="#76b97e"/>
+        <text x="82" y="80" text-anchor="middle" fill="#e9e2d2" font-size="10">STUXNET</text>
+        <text x="82" y="120" text-anchor="middle" fill="#8b8a96" font-size="9">2010</text>
+        <text x="82" y="133" text-anchor="middle" fill="#73b3a3" font-family="Spectral,serif" font-style="italic" font-size="9.5">crossing IN</text>
+
+        <circle cx="220" cy="100" r="5.5" fill="#76b97e"/>
+        <text x="220" y="80" text-anchor="middle" fill="#e9e2d2" font-size="10">HANSPACH–GOETZ</text>
+        <text x="220" y="120" text-anchor="middle" fill="#8b8a96" font-size="9">2013</text>
+        <text x="220" y="133" text-anchor="middle" fill="#73b3a3" font-family="Spectral,serif" font-style="italic" font-size="9.5">mesh (needs speakers)</text>
+
+        <circle cx="356" cy="100" r="5.5" fill="#76b97e"/>
+        <text x="356" y="80" text-anchor="middle" fill="#e9e2d2" font-size="10">FANSMITTER</text>
+        <text x="356" y="120" text-anchor="middle" fill="#8b8a96" font-size="9">2016</text>
+        <text x="356" y="133" text-anchor="middle" fill="#73b3a3" font-family="Spectral,serif" font-style="italic" font-size="9.5">fan — no speaker</text>
+
+        <circle cx="480" cy="100" r="5.5" fill="#76b97e"/>
+        <text x="480" y="80" text-anchor="middle" fill="#e9e2d2" font-size="10">DISKFILTRATION</text>
+        <text x="480" y="120" text-anchor="middle" fill="#8b8a96" font-size="9">2016</text>
+        <text x="480" y="133" text-anchor="middle" fill="#73b3a3" font-family="Spectral,serif" font-style="italic" font-size="9.5">drive head seeks</text>
+
+        <circle cx="596" cy="100" r="5.5" fill="#d9a441"/>
+        <text x="596" y="80" text-anchor="middle" fill="#e9e2d2" font-size="10">MOSQUITO</text>
+        <text x="596" y="120" text-anchor="middle" fill="#8b8a96" font-size="9">2018</text>
+        <text x="596" y="133" text-anchor="middle" fill="#73b3a3" font-family="Spectral,serif" font-style="italic" font-size="9.5">speaker↔speaker</text>
+      </g>
+      <text x="58" y="172" fill="#b9b2a3" font-family="Spectral,serif" font-style="italic" font-size="12.5">Stuxnet proved code can leap an air gap to get in. The Ben-Gurion lab spent a</text>
+      <text x="58" y="190" fill="#b9b2a3" font-family="Spectral,serif" font-style="italic" font-size="12.5">decade proving data can leap back out — <tspan fill="#76b97e">on fans, disks, and speakers turned into mics.</tspan></text>
+    </svg>
+    <figcaption><b>note.</b> Fansmitter, DiskFiltration, and MOSQUITO are all from Mordechai Guri's group at Ben-Gurion University — three of dozens of air-gap "Bridgeware" channels they built (others leak over electromagnetic, optical, magnetic, thermal, and power lines).</figcaption>
+  </figure>
+
+  <h2>② exfiltrate a byte through a fan</h2>
+  <div class="demo">
+    <div class="formula">BPF = RPM × blades ÷ 60 &nbsp;·&nbsp; 7-blade fan: 1700 RPM → 200 Hz <span style="color:var(--lead-dim)">(bit 0)</span> &nbsp; 2700 RPM → 320 Hz <span style="color:var(--lead-dim)">(bit 1)</span></div>
+    <div class="bits" id="bits"></div>
+    <figure style="margin:0 0 10px">
+      <svg class="frame" viewBox="0 0 600 120" id="tach" role="img" aria-label="Fan tone shifting between two RPM levels"></svg>
+    </figure>
+    <div class="row">
+      <button id="spin">▶ spin the fan (transmit)</button>
+      <button class="primary" id="rx">⌕ nearby phone decodes</button>
+    </div>
+    <div class="verdict" id="verdict">set 8 bits — the fan whine carries them, no speaker involved</div>
+  </div>
+
+  <h2>③ the family — noise made to talk</h2>
+  <div class="methods">
+    <div class="m"><span class="nm">Fansmitter</span><span class="ds">Modulate the <b>fan's RPM</b>, and its blade-pass tone shifts — FSK on a whirr. Audio-less PC to a phone in the room, 1–8 m, up to ~60 bit/min per fan.<span class="rb">emitter · CPU/GPU/chassis fan</span></span></div>
+    <div class="m"><span class="nm">DiskFiltration</span><span class="ds">Drive the <b>hard-drive head</b> through chosen seeks; the actuator's click-and-grind becomes the carrier. Works on a speakerless machine — fails against an SSD.<span class="rb">emitter · HDD actuator</span></span></div>
+    <div class="m"><span class="nm">MOSQUITO</span><span class="ds">Retask a <b>speaker as a microphone</b> in software, and two air-gapped PCs talk to each other directly over ultrasound — no mic, no network, no human hears it.<span class="rb">emitter · speaker-to-speaker</span></span></div>
+    <div class="m"><span class="nm">…and beyond sound</span><span class="ds">The same lab leaks over <b>LEDs, magnetic fields, heat, and power lines</b> — "Bridgeware." Acoustics is just the loudest member of a silent family.<span class="rb">emitter · everything that radiates</span></span></div>
+  </div>
+
+  <h2>④ the air gap isn't airtight — and your key can leave</h2>
+  <div class="attr">
+    This is Paper III run in reverse: there the attacker <i>read</i> a machine's involuntary leak; here malware <b>manufactures</b> one. It defeats the strongest isolation we have because the threat model never included the room's <span class="s">acoustics</span> — only its wires. The rates are punishing (bits per minute, not per second), but a <span class="v">key</span> is only a few hundred bits, and the attacker has all night. For attribution this is the exit wound: the same secured machine that holds your <span class="v">signing key</span> can hum it out through its own cooling fan. Defenses match the channel — an "audio gap" (no phones or mics near the secure host), fan-speed and disk-pattern monitoring, acoustic enclosures, ambient jamming. The lesson is blunt: <b>a machine that can make noise is never fully offline.</b>
+  </div>
+
+  <div class="note">
+    <b>what's authentic.</b> the BPF formula (RPM × blades ÷ 60), the Fansmitter / DiskFiltration / MOSQUITO mechanisms and the ≈60 bit/min figure are real and sourced from Guri's group. the demo genuinely encodes 8 bits as two fan-tone frequencies inside synthesized fan noise and recovers them by Goertzel analysis — verified, not faked.
+    <br><b>honest frame.</b> a real fan changes speed slowly (mechanical inertia) and hides in HVAC and room noise, so true exfiltration runs at bits-per-minute and needs error coding — i sped it up and cleaned the carrier so the mechanism is audible. the physics (data in the blade-pass frequency) is exactly right; the ease is not.
+  </div>
+
+  <div class="foot"><span>PAPER IV · AIR-GAP EXFILTRATION — make a silent machine talk</span><span>next ▸ V · ADVERSARIAL AUDIO — a message only a machine hears</span></div>
+</div>
+
+<script>
+(function(){
+  let BITS=[1,0,1,1,0,0,1,0];
+  const BLADES=7, RPM0=1714, RPM1=2743;            // → BPF 200 / 320 Hz
+  const F0=RPM0*BLADES/60, F1=RPM1*BLADES/60, SEGDUR=0.14;
+  let ctx=null;
+  function makeCtx(){if(!ctx)ctx=new (window.AudioContext||window.webkitAudioContext)();if(ctx.state==='suspended')ctx.resume();return ctx;}
+
+  // fan: lowpassed whoosh + tonal blade-pass peak (+ harmonic), FSK per bit
+  function fanBuf(bits,sr){const seg=Math.floor(SEGDUR*sr),n=seg*bits.length,b=new Float32Array(n);let lp=0;
+    bits.forEach((bit,k)=>{const f=bit?F1:F0,st=k*seg;
+      for(let i=0;i<seg;i++){const w=Math.random()*2-1;lp=lp*0.86+w*0.14;
+        const ph=2*Math.PI*f*(st+i)/sr;const r=i/seg;let env=1;if(r<0.06)env=r/0.06;else if(r>0.94)env=(1-r)/0.06;
+        b[st+i]=env*(0.5*Math.sin(ph)+0.18*Math.sin(2*ph)+0.32*lp);}});
+    let mx=0;for(let i=0;i<n;i++)mx=Math.max(mx,Math.abs(b[i]));if(mx)for(let i=0;i<n;i++)b[i]/=mx;
+    return {buf:b,seg};}
+  function goertzel(buf,start,len,f,sr){const w=2*Math.PI*f/sr,c=2*Math.cos(w);let s1=0,s2=0;
+    for(let i=0;i<len;i++){const s0=buf[start+i]+c*s1-s2;s2=s1;s1=s0;}return s1*s1+s2*s2-c*s1*s2;}
+  function decode(buf,nbits,seg,sr){const bits=[];for(let k=0;k<nbits;k++){const st=k*seg;
+    const p0=goertzel(buf,st,seg,F0,sr),p1=goertzel(buf,st,seg,F1,sr);bits.push(p1>p0?1:0);}return bits;}
+
+  function play(buf){const c=makeCtx();const b=c.createBuffer(1,buf.length,c.sampleRate);
+    (b.copyToChannel?b.copyToChannel(Float32Array.from(buf),0):b.getChannelData(0).set(buf));
+    const s=c.createBufferSource();s.buffer=b;const g=c.createGain();g.gain.value=0.55;s.connect(g).connect(c.destination);s.start();}
+
+  // bit toggles
+  const bitsEl=document.getElementById('bits');
+  function renderBits(){bitsEl.innerHTML='';BITS.forEach((bit,i)=>{const d=document.createElement('div');
+    d.className='bit'+(bit?' one':'');d.innerHTML=`<b>${bit}</b><small>${bit?'2700rpm':'1700rpm'}</small>`;
+    d.addEventListener('click',()=>{BITS[i]=bit?0:1;renderBits();drawTach(-1);
+      document.getElementById('verdict').innerHTML='bits changed — transmit &amp; decode again';});bitsEl.appendChild(d);});}
+
+  // tachometer / spectral-line viz
+  const tach=document.getElementById('tach'),NS='http://www.w3.org/2000/svg';
+  function drawTach(active){tach.innerHTML='';
+    const W=600,xMargin=40,bw=(W-xMargin-20)/BITS.length;
+    // two RPM levels as horizontal guide lines
+    const yLo=82,yHi=34;
+    [['1700 RPM · 200 Hz',yLo,'#5b5868'],['2700 RPM · 320 Hz',yHi,'#76b97e']].forEach(([lab,y,col])=>{
+      const l=document.createElementNS(NS,'line');l.setAttribute('x1',xMargin);l.setAttribute('x2',W-20);l.setAttribute('y1',y);l.setAttribute('y2',y);
+      l.setAttribute('stroke',col);l.setAttribute('stroke-width','1');l.setAttribute('stroke-dasharray','2 3');tach.appendChild(l);
+      const t=document.createElementNS(NS,'text');t.setAttribute('x',xMargin);t.setAttribute('y',y-4);t.setAttribute('fill',col);
+      t.setAttribute('font-family','IBM Plex Mono,monospace');t.setAttribute('font-size','8');t.textContent=lab;tach.appendChild(t);});
+    // step line across bits
+    let dpath='';BITS.forEach((bit,k)=>{const x=xMargin+k*bw,y=bit?yHi:yLo;
+      dpath+=(k===0?'M':'L')+x+','+y+' L'+(x+bw)+','+y+' ';
+      const dot=document.createElementNS(NS,'circle');dot.setAttribute('cx',x+bw/2);dot.setAttribute('cy',y);dot.setAttribute('r',k===active?6:4);
+      dot.setAttribute('fill',bit?'#76b97e':'#9a98a6');if(k===active)dot.setAttribute('filter','');tach.appendChild(dot);});
+    const pl=document.createElementNS(NS,'path');pl.setAttribute('d',dpath);pl.setAttribute('fill','none');
+    pl.setAttribute('stroke','rgba(118,185,126,.45)');pl.setAttribute('stroke-width','1.5');tach.insertBefore(pl,tach.firstChild);}
+  drawTach(-1);
+
+  document.getElementById('spin').addEventListener('click',()=>{const c=makeCtx();const {buf}=fanBuf(BITS,c.sampleRate);play(buf);
+    document.getElementById('verdict').innerHTML='▶ fan whirring — pitch is shifting per bit; a phone in the room is recording';drawTach(-1);});
+  document.getElementById('rx').addEventListener('click',()=>{const c=makeCtx();const {buf,seg}=fanBuf(BITS,c.sampleRate);
+    const rec=decode(buf,BITS.length,seg,c.sampleRate);const ok=rec.join('')===BITS.join('');
+    document.getElementById('verdict').innerHTML=`exfiltrated&nbsp; <b>${BITS.join(' ')}</b><br>decoded &nbsp;&nbsp;&nbsp;<b>${rec.join(' ')}</b> &nbsp; `+
+      (ok?'<b>✓ off the air-gapped box, no speaker</b>':'<span class="x">✗ error</span>');});
+
+  renderBits();
+  window.__airgap={fanBuf,decode};
+})();
+</script>
+</body>
+</html>
